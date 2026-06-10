@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: cargo build --release
+
+      - name: Package
+        run: |
+          mkdir -p chatpeer-x86_64-linux
+          cp target/release/chatpeer-daemon chatpeer-x86_64-linux/
+          cp -r extension chatpeer-x86_64-linux/
+          cp daemon/chatpeer.service chatpeer-x86_64-linux/
+          cp install.sh chatpeer-x86_64-linux/
+          tar czf chatpeer-x86_64-linux.tar.gz chatpeer-x86_64-linux/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: chatpeer-x86_64-linux.tar.gz
+          generate_release_notes: true

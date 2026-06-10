@@ -1,0 +1,13 @@
+[Unit]
+Description=ChatPeer P2P chat daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/chatpeer-daemon
+Restart=on-failure
+RestartSec=5
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,8 @@
+{
+  "name": "ChatPeer",
+  "description": "E2EE encrypted P2P chat in your top bar",
+  "uuid": "chatpeer@chatpeer.local",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "version": 1,
+  "url": "https://github.com/chatpeer/chatpeer"
+}
