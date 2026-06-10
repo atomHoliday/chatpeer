@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="chatpeer/chatpeer"
+REPO="atomHoliday/chatpeer"
 VERSION="${1:-latest}"
 
 DEST_BIN="${HOME}/.local/bin"
