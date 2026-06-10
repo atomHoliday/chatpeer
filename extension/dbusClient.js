@@ -1,3 +1,5 @@
+import Gio from 'gi://Gio';
+
 const DBusIface = `
 <node>
   <interface name="com.chatpeer.Daemon">

@@ -1,7 +1,5 @@
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import St from 'gi://St';
-import Clutter from 'gi://Clutter';
-import GObject from 'gi://GObject';
 
 export class ChatView extends PopupMenu.PopupMenuSection {
   constructor(sourceActor, peerId, username, sendMessageFn, loadHistoryFn) {
@@ -11,14 +9,16 @@ export class ChatView extends PopupMenu.PopupMenuSection {
     this._sendMessageFn = sendMessageFn;
     this._loadHistoryFn = loadHistoryFn;
     this._messages = [];
+    this._closeHandler = null;
 
-    // Header
     const header = new St.BoxLayout({ style_class: 'chat-header' });
     const backBtn = new St.Button({
       style_class: 'chat-back-btn',
       label: '←',
     });
-    backBtn.connect('clicked', () => this.emit('close'));
+    backBtn.connect('clicked', () => {
+      if (this._closeHandler) this._closeHandler();
+    });
     const title = new St.Label({
       text: `Chat with ${username}`,
       style_class: 'chat-title',
@@ -27,7 +27,6 @@ export class ChatView extends PopupMenu.PopupMenuSection {
     header.add_child(title);
     this.actor.add_child(header);
 
-    // Message list
     this._scrollView = new St.ScrollView({
       style_class: 'chat-messages',
       reactive: true,
@@ -39,7 +38,6 @@ export class ChatView extends PopupMenu.PopupMenuSection {
     this._scrollView.add_actor(this._messageBox);
     this.actor.add_child(this._scrollView);
 
-    // Input area
     const inputBox = new St.BoxLayout({ style_class: 'chat-input-box' });
     this._entry = new St.Entry({
       style_class: 'chat-input',
@@ -57,6 +55,10 @@ export class ChatView extends PopupMenu.PopupMenuSection {
     this.actor.add_child(inputBox);
 
     this._loadHistory();
+  }
+
+  setCloseHandler(handler) {
+    this._closeHandler = handler;
   }
 
   async _loadHistory() {
@@ -86,7 +88,6 @@ export class ChatView extends PopupMenu.PopupMenuSection {
       style_class: isOwn ? 'chat-msg-own' : 'chat-msg-other',
     });
     this._messageBox.add_child(msg);
-    // Scroll to bottom
     this._scrollView.vscroll.adjustment.value =
       this._scrollView.vscroll.adjustment.upper;
   }
@@ -95,5 +96,3 @@ export class ChatView extends PopupMenu.PopupMenuSection {
     this._addMessage(username, text, false);
   }
 }
-
-GObject.registerClass(ChatView);

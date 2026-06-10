@@ -90,7 +90,7 @@ export class ChatPanelButton extends PanelMenu.Button {
         (id, text) => this._dbus.sendMessage(id, text),
         (id, limit) => this._dbus.getConversation(id, limit)
       );
-      chatView.connect('close', () => {
+      chatView.setCloseHandler(() => {
         delete this._conversations[peerId];
       });
       this._conversations[peerId] = { username, chatView };
