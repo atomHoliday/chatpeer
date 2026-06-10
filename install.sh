@@ -34,19 +34,36 @@ else
   trap 'rm -rf "$TMPDIR"' EXIT
 
   if command -v curl &>/dev/null; then
-    curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz"
+    HTTP_CODE=$(curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz" -w "%{http_code}" 2>&1) || HTTP_CODE=404
   elif command -v wget &>/dev/null; then
-    wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz"
+    wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz" || HTTP_CODE=404
   else
     echo "Error: need curl or wget" >&2
     exit 1
   fi
 
-  tar xzf "$TMPDIR/release.tar.gz" -C "$TMPDIR"
-  EXTRACTED="$TMPDIR/chatpeer-x86_64-linux"
-  BIN="$EXTRACTED/chatpeer-daemon"
-  EXT_DIR="$EXTRACTED/extension"
-  SVC_FILE="$EXTRACTED/chatpeer.service"
+  if [ ! -f "$TMPDIR/release.tar.gz" ] || [ "$HTTP_CODE" = "404" ]; then
+    echo "==> No pre-built release found. Building from source..."
+    if command -v cargo &>/dev/null; then
+      git clone "https://github.com/$REPO.git" "$TMPDIR/repo"
+      cd "$TMPDIR/repo"
+      cargo build --release
+      BIN="$TMPDIR/repo/target/release/chatpeer-daemon"
+      EXT_DIR="$TMPDIR/repo/extension"
+      SVC_FILE="$TMPDIR/repo/daemon/chatpeer.service"
+    else
+      echo "Error: no release available and cargo not found to build." >&2
+      echo "Install Rust at https://rustup.rs or download a release from:" >&2
+      echo "  https://github.com/$REPO/releases" >&2
+      exit 1
+    fi
+  else
+    tar xzf "$TMPDIR/release.tar.gz" -C "$TMPDIR"
+    EXTRACTED="$TMPDIR/chatpeer-x86_64-linux"
+    BIN="$EXTRACTED/chatpeer-daemon"
+    EXT_DIR="$EXTRACTED/extension"
+    SVC_FILE="$EXTRACTED/chatpeer.service"
+  fi
 fi
 
 echo "==> Installing daemon binary..."
