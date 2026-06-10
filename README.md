@@ -7,7 +7,7 @@ Discover other Linux users on your network and chat with them — no server, no 
 ## Install
 
 ```bash
-bash <(curl -sSf https://raw.githubusercontent.com/chatpeer/chatpeer/main/install.sh)
+bash <(curl -sSf https://raw.githubusercontent.com/atomHoliday/chatpeer/main/install.sh)
 ```
 
 Or download the latest release from the [releases page](https://github.com/chatpeer/chatpeer/releases).

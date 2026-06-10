@@ -9,32 +9,48 @@ permissions:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        target:
+          - triple: x86_64-unknown-linux-musl
+            arch: x86_64
+            pkgs: musl-tools
+          - triple: aarch64-unknown-linux-musl
+            arch: aarch64
+            pkgs: musl-tools gcc-aarch64-linux-gnu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-musl
+          targets: ${{ matrix.target.triple }}
 
-      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: sudo apt-get update && sudo apt-get install -y ${{ matrix.target.pkgs }}
 
-      - run: cargo build --release --target x86_64-unknown-linux-musl
+      - run: cargo build --release --target ${{ matrix.target.triple }}
 
-      - run: strip target/x86_64-unknown-linux-musl/release/chatpeer-daemon
+      - name: Strip
+        run: |
+          if [ "${{ matrix.target.arch }}" = "aarch64" ]; then
+            aarch64-linux-gnu-strip target/${{ matrix.target.triple }}/release/chatpeer-daemon
+          else
+            strip target/${{ matrix.target.triple }}/release/chatpeer-daemon
+          fi
 
       - name: Package
         run: |
-          mkdir -p chatpeer-x86_64-linux
-          cp target/x86_64-unknown-linux-musl/release/chatpeer-daemon chatpeer-x86_64-linux/
-          cp -r extension chatpeer-x86_64-linux/
-          cp daemon/chatpeer.service chatpeer-x86_64-linux/
-          cp install.sh chatpeer-x86_64-linux/
-          tar czf chatpeer-x86_64-linux.tar.gz chatpeer-x86_64-linux/
+          DIR="chatpeer-${{ matrix.target.arch }}-linux"
+          mkdir -p "$DIR"
+          cp "target/${{ matrix.target.triple }}/release/chatpeer-daemon" "$DIR/"
+          cp -r extension "$DIR/"
+          cp daemon/chatpeer.service "$DIR/"
+          cp install.sh "$DIR/"
+          tar czf "$DIR.tar.gz" "$DIR/"
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: chatpeer-x86_64-linux.tar.gz
-          generate_release_notes: true
+          files: chatpeer-${{ matrix.target.arch }}-linux.tar.gz
+          generate_release_notes: ${{ matrix.target.arch == 'x86_64' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

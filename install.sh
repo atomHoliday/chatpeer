@@ -46,9 +46,9 @@ else
     trap 'rm -rf "$TMPDIR"' EXIT
 
     if command -v curl &>/dev/null; then
-      HTTP_CODE=$(curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz" -w "%{http_code}" 2>&1) || HTTP_CODE=404
+      HTTP_CODE=$(curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz" -w "%{http_code}") || HTTP_CODE=404
     elif command -v wget &>/dev/null; then
-      wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz" || HTTP_CODE=404
+      wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz" && HTTP_CODE=200 || HTTP_CODE=404
     else
       echo "Error: need curl or wget" >&2
       exit 1
@@ -61,6 +61,7 @@ else
       EXT_DIR="$EXTRACTED/extension"
       SVC_FILE="$EXTRACTED/chatpeer.service"
     else
+      rm -rf "$TMPDIR"
       BUILD_FROM_SOURCE=1
     fi
   fi
@@ -70,7 +71,8 @@ else
     if command -v cargo &>/dev/null; then
       TMPDIR="$(mktemp -d)"
       trap 'rm -rf "$TMPDIR"' EXIT
-      git clone "https://github.com/$REPO.git" "$TMPDIR/repo"
+      echo "==> Cloning $REPO..."
+      git clone --depth=1 "https://github.com/$REPO.git" "$TMPDIR/repo"
       cd "$TMPDIR/repo"
       cargo build --release
       BIN="$TMPDIR/repo/target/release/chatpeer-daemon"
@@ -105,8 +107,8 @@ cp "$EXT_DIR/stylesheet.css" "$DEST_EXTENSION/"
 echo "==> Registering extension for next GNOME Shell restart..."
 CURRENT_EXTENSIONS="$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || echo "[]")"
 if ! echo "$CURRENT_EXTENSIONS" | grep -q "chatpeer@chatpeer.local"; then
-  NEW_EXTENSIONS="$(echo "$CURRENT_EXTENSIONS" | sed "s/\]$/,\"chatpeer@chatpeer.local\"\]/")"
-  gsettings set org.gnome.shell enabled-extensions "$NEW_EXTENSIONS" 2>/dev/null || true
+  NEW_EXTENSIONS="$(echo "$CURRENT_EXTENSIONS" | sed "s/\]$/,'chatpeer@chatpeer.local'\]/")"
+  gsettings set org.gnome.shell enabled-extensions "$NEW_EXTENSIONS" || true
 fi
 
 echo ""
