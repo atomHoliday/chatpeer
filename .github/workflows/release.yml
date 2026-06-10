@@ -9,36 +9,32 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-musl
 
-      - run: cargo build --release --target ${{ matrix.target }}
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      - run: strip target/${{ matrix.target }}/release/chatpeer-daemon
+      - run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - run: strip target/x86_64-unknown-linux-musl/release/chatpeer-daemon
 
       - name: Package
         run: |
-          ARCH=$(echo ${{ matrix.target }} | sed 's/-unknown-linux-musl//')
-          mkdir -p chatpeer-${ARCH}-linux
-          cp target/${{ matrix.target }}/release/chatpeer-daemon chatpeer-${ARCH}-linux/
-          cp -r extension chatpeer-${ARCH}-linux/
-          cp daemon/chatpeer.service chatpeer-${ARCH}-linux/
-          cp install.sh chatpeer-${ARCH}-linux/
-          tar czf chatpeer-${ARCH}-linux.tar.gz chatpeer-${ARCH}-linux/
+          mkdir -p chatpeer-x86_64-linux
+          cp target/x86_64-unknown-linux-musl/release/chatpeer-daemon chatpeer-x86_64-linux/
+          cp -r extension chatpeer-x86_64-linux/
+          cp daemon/chatpeer.service chatpeer-x86_64-linux/
+          cp install.sh chatpeer-x86_64-linux/
+          tar czf chatpeer-x86_64-linux.tar.gz chatpeer-x86_64-linux/
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: chatpeer-*-linux.tar.gz
+          files: chatpeer-x86_64-linux.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
