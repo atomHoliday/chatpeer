@@ -22,29 +22,54 @@ if [ -f "$SCRIPT_DIR/Cargo.toml" ] && [ -d "$SCRIPT_DIR/daemon" ]; then
   EXT_DIR="$SCRIPT_DIR/extension"
   SVC_FILE="$SCRIPT_DIR/daemon/chatpeer.service"
 else
-  # Download pre-built release from GitHub
-  echo "==> Downloading ChatPeer release..."
-  if [ "$VERSION" = "latest" ]; then
-    DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/chatpeer-x86_64-linux.tar.gz"
-  else
-    DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/chatpeer-x86_64-linux.tar.gz"
+  # Detect architecture
+  ARCH="$(uname -m)"
+  case "$ARCH" in
+    x86_64|amd64)  ARCH="x86_64" ;;
+    aarch64|arm64) ARCH="aarch64" ;;
+    *)
+      BUILD_FROM_SOURCE=1
+      ;;
+  esac
+
+  if [ -z "${BUILD_FROM_SOURCE:-}" ]; then
+    # Download pre-built release from GitHub
+    echo "==> Downloading ChatPeer release for $ARCH..."
+    TARBALL="chatpeer-${ARCH}-linux.tar.gz"
+    if [ "$VERSION" = "latest" ]; then
+      DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/$TARBALL"
+    else
+      DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$TARBALL"
+    fi
+
+    TMPDIR="$(mktemp -d)"
+    trap 'rm -rf "$TMPDIR"' EXIT
+
+    if command -v curl &>/dev/null; then
+      HTTP_CODE=$(curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz" -w "%{http_code}" 2>&1) || HTTP_CODE=404
+    elif command -v wget &>/dev/null; then
+      wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz" || HTTP_CODE=404
+    else
+      echo "Error: need curl or wget" >&2
+      exit 1
+    fi
+
+    if [ -f "$TMPDIR/release.tar.gz" ] && [ "$HTTP_CODE" != "404" ]; then
+      tar xzf "$TMPDIR/release.tar.gz" -C "$TMPDIR"
+      EXTRACTED="$TMPDIR/chatpeer-${ARCH}-linux"
+      BIN="$EXTRACTED/chatpeer-daemon"
+      EXT_DIR="$EXTRACTED/extension"
+      SVC_FILE="$EXTRACTED/chatpeer.service"
+    else
+      BUILD_FROM_SOURCE=1
+    fi
   fi
 
-  TMPDIR="$(mktemp -d)"
-  trap 'rm -rf "$TMPDIR"' EXIT
-
-  if command -v curl &>/dev/null; then
-    HTTP_CODE=$(curl -sSfL "$DOWNLOAD_URL" -o "$TMPDIR/release.tar.gz" -w "%{http_code}" 2>&1) || HTTP_CODE=404
-  elif command -v wget &>/dev/null; then
-    wget -q "$DOWNLOAD_URL" -O "$TMPDIR/release.tar.gz" || HTTP_CODE=404
-  else
-    echo "Error: need curl or wget" >&2
-    exit 1
-  fi
-
-  if [ ! -f "$TMPDIR/release.tar.gz" ] || [ "$HTTP_CODE" = "404" ]; then
-    echo "==> No pre-built release found. Building from source..."
+  if [ -n "${BUILD_FROM_SOURCE:-}" ]; then
+    echo "==> Building from source..."
     if command -v cargo &>/dev/null; then
+      TMPDIR="$(mktemp -d)"
+      trap 'rm -rf "$TMPDIR"' EXIT
       git clone "https://github.com/$REPO.git" "$TMPDIR/repo"
       cd "$TMPDIR/repo"
       cargo build --release
@@ -52,17 +77,10 @@ else
       EXT_DIR="$TMPDIR/repo/extension"
       SVC_FILE="$TMPDIR/repo/daemon/chatpeer.service"
     else
-      echo "Error: no release available and cargo not found to build." >&2
-      echo "Install Rust at https://rustup.rs or download a release from:" >&2
-      echo "  https://github.com/$REPO/releases" >&2
+      echo "Error: cannot build from source — install Rust at https://rustup.rs" >&2
+      echo "Or download a release from: https://github.com/$REPO/releases" >&2
       exit 1
     fi
-  else
-    tar xzf "$TMPDIR/release.tar.gz" -C "$TMPDIR"
-    EXTRACTED="$TMPDIR/chatpeer-x86_64-linux"
-    BIN="$EXTRACTED/chatpeer-daemon"
-    EXT_DIR="$EXTRACTED/extension"
-    SVC_FILE="$EXTRACTED/chatpeer.service"
   fi
 fi
 
